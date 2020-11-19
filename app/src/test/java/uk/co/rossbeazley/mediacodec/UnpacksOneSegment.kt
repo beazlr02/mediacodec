@@ -279,30 +279,4 @@ class UnpacksOneSegment {
         assertThat(extracter.naluForSample(0)[2].size, `is`(76))
         assertThat(extracter.naluForSample(0)[3].size, `is`(83))
     }
-
-    @Test @Ignore
-    fun exportNalus()
-    {
-
-        var extracter: VideoM4SExtractor
-
-        val classLoader = this::class.java.classLoader!!
-        val resourceAsStream = classLoader.getResourceAsStream("p087hv48/seg1.m4s")
-        val bytes: ByteArray = resourceAsStream.use { it.readBytes() }
-        extracter = VideoM4SExtractor(bytes)
-
-        val fileOutputStream = FileOutputStream("./extractor.h264")
-
-        (0 until extracter.frameCount).forEach { nal ->
-            extracter.naluForSample(nal).forEach {
-                fileOutputStream.write(0x00)
-                fileOutputStream.write(0x00)
-                fileOutputStream.write(0x00)
-                fileOutputStream.write(0x01)
-                fileOutputStream.write(it)
-            }
-        }
-
-        fileOutputStream.close()
-    }
 }
