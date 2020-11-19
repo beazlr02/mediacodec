@@ -15,7 +15,7 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
-public class SingleThreadedDecodingActivity extends Activity implements SurfaceHolder.Callback {
+public class MP4SingleThreadedDecodingActivity extends Activity implements SurfaceHolder.Callback {
 
 	private MediaExtractorAndDecoderThread mPlayer = null;
 
@@ -42,7 +42,7 @@ public class SingleThreadedDecodingActivity extends Activity implements SurfaceH
 				mPlayer = new MediaExtractorAndDecoderThread(holder.getSurface(), getAssets().openFd("sample.mp4"));
 				mPlayer.setUncaughtExceptionHandler((e,t) -> {
 
-					SingleThreadedDecodingActivity.this.finish();
+					MP4SingleThreadedDecodingActivity.this.finish();
 				});
 			} catch (IOException e) {
 				throw new RuntimeException(e);
@@ -192,7 +192,7 @@ public class SingleThreadedDecodingActivity extends Activity implements SurfaceH
 					allReleased = true;
 				}
 
-				SingleThreadedDecodingActivity.this.finish();
+				MP4SingleThreadedDecodingActivity.this.finish();
 		}
 
 

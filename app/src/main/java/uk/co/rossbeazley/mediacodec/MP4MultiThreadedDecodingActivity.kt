@@ -12,7 +12,7 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import java.io.IOException
 
-class MultiThreadedDecodingActivity : Activity(), SurfaceHolder.Callback {
+class MP4MultiThreadedDecodingActivity : Activity(), SurfaceHolder.Callback {
 
     lateinit var decoder : MediaCodec
     var NOT_DONE = true

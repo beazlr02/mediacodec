@@ -18,7 +18,7 @@
         android:theme="@style/AppTheme"
         android:banner="@drawable/ic_launcher_background">
 
-        <activity android:name=".MultiThreadedExtractorDecodingActivity">
+        <activity android:name=".ExtractorDecodingActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

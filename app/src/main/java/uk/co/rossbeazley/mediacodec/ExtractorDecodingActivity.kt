@@ -12,7 +12,7 @@ import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 
-class MultiThreadedExtractorDecodingActivity : Activity(), SurfaceHolder.Callback {
+class ExtractorDecodingActivity : Activity(), SurfaceHolder.Callback {
 
     lateinit var extracter: VideoM4SExtractor
     private lateinit var initExtractor: InitM4SExtractor
