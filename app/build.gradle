@@ -27,6 +27,9 @@ android {
     aaptOptions {
         noCompress "m4s","h264", "dash"
     }
+    sourceSets {
+        main.java.srcDirs += 'src/main/extractor'
+    }
 }
 
 dependencies {
