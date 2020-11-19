@@ -51,16 +51,17 @@ class MultiThreadedExtractorDecodingActivity : Activity(), SurfaceHolder.Callbac
         logInput("cobbleTogetherACodec, should really parse something to work this out -_-")
 
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, 192, 108)
-        format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileConstrainedBaseline)
+        format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileMain)
         format.setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AV1Level21)
         format.setFloat(MediaFormat.KEY_FRAME_RATE, 25.0f)
         format.setInteger(MediaFormat.KEY_ROTATION, 0)
         format.setInteger(MediaFormat.KEY_MAX_HEIGHT, 540)
         format.setInteger(MediaFormat.KEY_HEIGHT, 108)
         format.setInteger(MediaFormat.KEY_WIDTH, 192)
-        format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 391680)
+        format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 3916) //80
         format.setInteger(MediaFormat.KEY_PRIORITY, 0)
         format.setInteger(MediaFormat.KEY_MAX_WIDTH, 960)
+        format.setFloat(MediaFormat.KEY_I_FRAME_INTERVAL,1.0f)
 
         val decoderName = MediaCodecList(MediaCodecList.REGULAR_CODECS).findDecoderForFormat(format)
         val decoder = MediaCodec.createByCodecName(decoderName)
@@ -81,6 +82,7 @@ class MultiThreadedExtractorDecodingActivity : Activity(), SurfaceHolder.Callbac
            val frameCount = extracter.frameCount
            for(frame in 0 until frameCount) {
                feedCodec(extracter, decoder, frame)
+               SystemClock.sleep(40)
            }
            logInput("all done with the frames")
            sendEOS(decoder, frameCount)
@@ -96,36 +98,27 @@ class MultiThreadedExtractorDecodingActivity : Activity(), SurfaceHolder.Callbac
         buffer.clear()
 
         val microSeconds = frameIdx * (1_000_000 / 25L)
-        var flags: Int = flagsFor(frameIdx = frameIdx, nalCount = nalCount)
 
         extracter.naluForSample(frameIdx).forEach {
             logInput("Feeding    nal          ===== ${nalCount}")
-            buffer.put(0x00)
-            buffer.put(0x00)
-            buffer.put(0x00)
+            buffer.putInt(0x00)
             buffer.put(0x01)
             buffer.put(it)
             nalCount+=1
         }
         buffer.flip()
+
+        var flags : Int = flagsFor(frameIdx = frameIdx)
         var sampleSize = buffer.limit()
         decoder.queueInputBuffer(inIndex, frameIdx, sampleSize, microSeconds, flags)
         logInput("queued buffer $inIndex with nalu ${frameIdx},${nalCount}. Size was $sampleSize and presentation time was $microSeconds and flags $flags ==================")
     }
 
-    private fun flagsFor(frameIdx: Int, nalCount: Int): Int {
-        var flags: Int = 0
-        if (frameIdx == 0) {
-            flags = when (nalCount) {
-                0 -> 0.or(MediaCodec.BUFFER_FLAG_CODEC_CONFIG)
-                1 -> 0.or(MediaCodec.BUFFER_FLAG_CODEC_CONFIG)
-                2 -> 0.or(MediaCodec.BUFFER_FLAG_CODEC_CONFIG)
-                3 -> 0.or(MediaCodec.BUFFER_FLAG_KEY_FRAME)
-                else -> 0
-            }
+    private fun flagsFor(frameIdx: Int) = when (frameIdx) {
+            0 -> 0 or MediaCodec.BUFFER_FLAG_CODEC_CONFIG or MediaCodec.BUFFER_FLAG_KEY_FRAME
+            76 ->  0 or MediaCodec.BUFFER_FLAG_KEY_FRAME
+            else -> 0
         }
-        return flags
-    }
 
     private fun dequeueAnInputBufferIndexFromDecoder(decoder: MediaCodec): Int {
         var inIndex: Int = MediaCodec.INFO_TRY_AGAIN_LATER
@@ -157,45 +150,43 @@ class MultiThreadedExtractorDecodingActivity : Activity(), SurfaceHolder.Callbac
     private fun renderToScreen(decoder: MediaCodec, surface: Surface) {
 
         Thread {
+            var bufferReleaseCount = 0
             val info = MediaCodec.BufferInfo()
+            print("DecodeActivityOutput")
             while (NOT_DONE) {
                 val outIndex = decoder.dequeueOutputBuffer(info, 10000)
                 when (outIndex) {
                     MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> logOutput("New format INFO_OUTPUT_FORMAT_CHANGED " + decoder.outputFormat)
-                    MediaCodec.INFO_TRY_AGAIN_LATER -> logOutput("dequeueOutputBuffer timed out!")
+                    MediaCodec.INFO_TRY_AGAIN_LATER -> doNothing()
                     else -> {
                         logOutput("Got a buffer at ${info.presentationTimeUs} and current presentation time ${ info.presentationTimeUs.toFloat() / 1_000_000f }")
-                            SystemClock.sleep(40)
                         logOutput("OutputBuffer info flags " + Integer.toBinaryString(info.flags))
 
                         if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM == 0) {
                             decoder.releaseOutputBuffer(outIndex, true)
-                            logOutput("RELEASED A BUFFER!")
+                            logOutput("RELEASED A BUFFER! ${++bufferReleaseCount}")
                         } else {
-                            logOutput("Found an EOS so not releasing")
+                            logOutput("OutputBuffer BUFFER_FLAG_END_OF_STREAM")
+                            decoder.stop()
+                            decoder.release()
+                            NOT_DONE = false
                         }
                     }
-                }
-
-                // All decoded frames have been rendered, we can stop playing now
-                if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
-                    logOutput("OutputBuffer BUFFER_FLAG_END_OF_STREAM")
-                    decoder.stop()
-                    decoder.release()
-                    NOT_DONE = false
-                } else {
-                    logOutput("carry on")
                 }
             }
             logOutput("ENDING OUTPUT THREAD")
         }.start()
     }
 
-    override fun surfaceCreated(holder: SurfaceHolder) = startPlayback(holder.surface)
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
+    private fun doNothing() {
+        SystemClock.sleep(10)
+    }
+
+    override fun surfaceCreated(holder: SurfaceHolder) {}
+    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = startPlayback(holder.surface)//{logMain("SURFACE CHANGED")}
     override fun surfaceDestroyed(holder: SurfaceHolder) {}
 
-    private fun logMain(message: String) = Log.d("DecodeActivityInput", message)
+    private fun logMain(message: String) = Log.d("DecodeActivityMain", message)
     private fun logInput(message: String) =Log.d("DecodeActivityInput", message)
     private fun logOutput(message: String) =Log.d("DecodeActivityOutput", message)
 
